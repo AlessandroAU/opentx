@@ -21,6 +21,17 @@
 #include <io/frsky_firmware_update.h>
 #include "opentx.h"
 
+//OneAUDfilter filter(100, 200, 0.1, 1000); //(minCutoff, maxCutoff, beta, sampleRate);
+//OneAUDfilter aud_filter(100, 200, 0.01, 1000);
+//OneAUDfilter filter_bank[6] = {OneAUDfilter(100, 200, 0.1, 1000),OneAUDfilter(100, 200, 0.1, 1000),OneAUDfilter(100, 200, 0.1, 1000),OneAUDfilter(100, 200, 0.1, 1000),OneAUDfilter(100, 200, 0.1, 1000),OneAUDfilter(100, 200, 0.1, 1000)};
+LPF LPF_ADC[NUM_ANALOGS];
+
+uint8_t ADCoversampleCounter = 0;
+
+#ifndef USE_ADC_OVERSAMPLE
+#define ADC_OVERSAMPLE_RATIO 1
+#endif
+
 RadioData  g_eeGeneral;
 ModelData  g_model;
 
@@ -1268,16 +1279,20 @@ void getADC()
     // Variables mapping:
     //   * <in> = v
     //   * <out> = s_anaFilt[x]
-    uint16_t previous = s_anaFilt[x] / JITTER_ALPHA;
-    uint16_t diff = (v > previous) ? (v - previous) : (previous - v);
-    if (!g_eeGeneral.jitterFilter && diff < (10*ANALOG_MULTIPLIER)) { // g_eeGeneral.jitterFilter is inverted, 0 - active
-      // apply jitter filter
-      s_anaFilt[x] = (s_anaFilt[x] - previous) + v;
-    }
-    else {
-      // use unfiltered value
-      s_anaFilt[x] = v * JITTER_ALPHA;
-    }
+    // uint16_t previous = s_anaFilt[x] / JITTER_ALPHA;
+    // uint16_t diff = (v > previous) ? (v - previous) : (previous - v);
+    // if (!g_eeGeneral.jitterFilter && diff < (10*ANALOG_MULTIPLIER)) { // g_eeGeneral.jitterFilter is inverted, 0 - active
+    //   // apply jitter filter
+    //   s_anaFilt[x] = (s_anaFilt[x] - previous) + v;
+    // }
+    // else {
+    //   // use unfiltered value
+    //   s_anaFilt[x] = v * JITTER_ALPHA;
+    // }
+
+    //s_anaFilt[x] = filter_bank[x].update(v);
+    s_anaFilt[x] = LPF_ADC[x].update(v * JITTER_ALPHA);
+    //s_anaFilt[x] = v * JITTER_ALPHA;
 
 #if defined(JITTER_MEASURE)
     if (JITTER_MEASURE_ACTIVE()) {
@@ -1376,8 +1391,28 @@ void evalTrims()
 
 uint8_t s_mixer_first_run_done = false;
 
+#ifdef USE_ADC_OVERSAMPLE
+uint8_t ADCoversample()
+{
+  ADCoversampleCounter++;
+  DEBUG_TIMER_START(debugTimerGetAdc);
+  getADC();
+  DEBUG_TIMER_STOP(debugTimerGetAdc);
+
+  return (ADCoversampleCounter % ADC_OVERSAMPLE_RATIO);
+  // {
+  //   return true;
+  // }
+  // else
+  // {
+  //   return false;
+  // }
+}
+#endif
+
 void doMixerCalculations()
 {
+
   static tmr10ms_t lastTMR = 0;
 
   tmr10ms_t tmr10ms = get_tmr10ms();
@@ -1396,9 +1431,11 @@ void doMixerCalculations()
   // therefore forget the exact calculation and use only 1 instead; good compromise
   lastTMR = tmr10ms;
 
+#ifndef USE_ADC_OVERSAMPLE
   DEBUG_TIMER_START(debugTimerGetAdc);
   getADC();
   DEBUG_TIMER_STOP(debugTimerGetAdc);
+ #endif 
 
   DEBUG_TIMER_START(debugTimerGetSwitches);
   getSwitchesPosition(!s_mixer_first_run_done);

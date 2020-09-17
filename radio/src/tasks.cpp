@@ -171,12 +171,19 @@ TASK_FUNCTION(mixerTask)
       DEBUG_TIMER_START(debugTimerMixer);
       RTOS_LOCK_MUTEX(mixerMutex);
 
-      doMixerCalculations();
-
-      // TODO: fix runMask
-      sendSynchronousPulses((1 << INTERNAL_MODULE) | (1 << EXTERNAL_MODULE));
-
-      doMixerPeriodicUpdates();
+#ifdef USE_ADC_OVERSAMPLE
+      if (ADCoversample() == 0)
+      {
+        doMixerCalculations();
+        // TODO: fix runMask
+        sendSynchronousPulses((1 << INTERNAL_MODULE) | (1 << EXTERNAL_MODULE));
+        doMixerPeriodicUpdates();
+      }
+      // else if (ADCoversample() == 1)
+      // {
+      //   doMixerPeriodicUpdates();
+      // }
+#endif
 
       DEBUG_TIMER_START(debugTimerMixerCalcToUsage);
       DEBUG_TIMER_SAMPLE(debugTimerMixerIterval);

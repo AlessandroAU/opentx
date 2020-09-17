@@ -27,6 +27,7 @@
 #include "debounce.h"
 #include "globals.h"
 #include "opentx_helpers.h"
+#include "LPF.h"
 
 #if defined(SIMU)
 #include "targets/simu/simpgmspace.h"
@@ -483,7 +484,15 @@ extern uint32_t nextMixerTime[NUM_MODULES];
 
 void evalFlightModeMixes(uint8_t mode, uint8_t tick10ms);
 void evalMixes(uint8_t tick10ms);
+
+#define USE_ADC_OVERSAMPLE
+#define ADC_OVERSAMPLE_RATIO 2
+extern uint8_t ADCoversampleCounter;
+
+#ifdef USE_ADC_OVERSAMPLE
 void doMixerCalculations();
+uint8_t ADCoversample();
+#endif
 void doMixerPeriodicUpdates();
 
 void checkTrims();

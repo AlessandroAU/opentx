@@ -62,7 +62,11 @@ void mixerSchedulerSetPeriod(uint8_t moduleIdx, uint16_t periodUs)
     periodUs = MAX_REFRESH_RATE;
   }
 
+  #ifdef USE_ADC_OVERSAMPLE
+  mixerSchedules[moduleIdx].period = periodUs / ADC_OVERSAMPLE_RATIO;
+  #else
   mixerSchedules[moduleIdx].period = periodUs;
+  #endif
 }
 
 bool mixerSchedulerWaitForTrigger(uint8_t timeoutMs)
